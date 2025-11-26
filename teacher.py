@@ -3,23 +3,20 @@ import pandas as pd
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
-st.set_page_config(page_title="Student Portal", layout="centered", page_icon="🎓")
-
-st.markdown("""
-<style>
-    body { direction: rtl; }
-    .stMetric { background-color: #f0f8ff; border-radius: 10px; padding: 10px; }
-</style>
-""", unsafe_allow_html=True)
-
+st.set_page_config(page_title="بوابة الطالب", layout="centered", page_icon="🎓")
+st.markdown("""<style>body { direction: rtl; } .stMetric { background-color: #f0f8ff; border-radius: 10px; padding: 10px; border: 1px solid #ddd; }</style>""", unsafe_allow_html=True)
 SHEET_NAME = "users_database"
 
 @st.cache_resource
 def get_client():
+    if "gcp_service_account" not in st.secrets:
+        st.error("⚠️ الرجاء إضافة المفاتيح في Secrets.")
+        st.stop()
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     try:
         creds_dict = dict(st.secrets["gcp_service_account"])
-        creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+        if "private_key" in creds_dict:
+            creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
         return gspread.authorize(creds)
     except: return None
@@ -46,11 +43,9 @@ def main():
     else:
         u = st.session_state['student_user']
         st.title(f"مرحباً، {u['Name']}")
-        
         c1, c2 = st.columns(2)
         c1.metric("الفرقة الدراسية", u['Year'])
         c2.metric("التخصص", u['Major'])
-        
         st.divider()
         st.subheader("📂 ملفك الأكاديمي")
         
@@ -58,15 +53,10 @@ def main():
         try:
             ws = client.open(SHEET_NAME).worksheet(str(u['Code']))
             data = ws.get_all_records()
-            st.dataframe(
-                pd.DataFrame(data), 
-                column_config={"Link": st.column_config.LinkColumn("رابط", display_text="🔗 فتح")},
-                use_container_width=True,
-                hide_index=True
-            )
+            st.dataframe(pd.DataFrame(data), column_config={"Link": st.column_config.LinkColumn("رابط", display_text="🔗 فتح")}, use_container_width=True, hide_index=True)
         except: st.info("الملف قيد التجهيز...")
 
-        if st.button("تسجيل خروج"):
+        if st.button("تسجيل خروج", type="primary"):
             del st.session_state['student_user']
             st.rerun()
 
